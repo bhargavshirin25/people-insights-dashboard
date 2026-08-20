@@ -1,0 +1,631 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens.
+ *
+ * The categorical series slots and the status palette come from the validated data-visualisation
+ * palette; the dark column is the same hues re-stepped for the dark surface, not an automatic
+ * inversion. Both sets were checked with the palette validator against the exact surfaces below:
+ * light #ffffff and dark #17171a. Do not hand-edit a series hex without re-running that check —
+ * the slot ordering is what keeps adjacent series separable for colour-vision deficiency.
+ */
+:root {
+  color-scheme: light;
+
+  /*
+   * Pure white, and neutral all the way through.
+   *
+   * The page and the cards are the same white, so the only thing separating them is --card-border. That is
+   * the whole design: three passes tried a tinted ground — blue-grey, then warm greige, then the original
+   * warm off-white — and each one traded a little legibility for a colour nobody asked the page to have.
+   *
+   * Every grey here has zero hue cast, measured as the spread between its highest and lowest channel. The
+   * warm palette this replaced carried 12 points of it in the chart axes and 7 in the muted ink, which is
+   * what read as dusky: not one obviously beige surface, but every grey on the page leaning the same way at
+   * once.
+   *
+   * --surface-1 is unchanged and is still the surface the series palette below was validated against, so
+   * nothing about the charts moved across any of these passes.
+   */
+  --surface-page: #ffffff;
+  --surface-1: #ffffff;
+  /* The one grey with a job: panel headers, chips, inputs and the assistant's own bubbles. Without it a
+     white page of white cards has no internal structure at all. */
+  --surface-2: #f4f4f4;
+  --surface-raised: #ffffff;
+
+  --text-primary: #0b0b0b;
+  --text-secondary: #4f4f4f;
+  --text-muted: #6a6a6a;
+
+  --border-hairline: rgba(11, 11, 11, 0.11);
+  --border-strong: rgba(11, 11, 11, 0.2);
+  /*
+   * The edge of a card, and now the only thing that makes one visible.
+   *
+   * Black at 24% renders #c4c4c4 and sits at 1.74:1 against the page. Below about 1.4:1 an edge reads as a
+   * suggestion; past 3:1 every card becomes a boxed table cell and the page reads as a grid. Internal rules
+   * stay on --border-hairline, so a panel has an outline without its contents gaining a mesh.
+   */
+  --card-border: rgba(11, 11, 11, 0.24);
+  --gridline: #e4e4e4;
+  --axis: #c2c2c2;
+
+  /* Categorical series — fixed order, never cycled. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  /* Status — reserved, always paired with an icon and a label. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --status-good-text: #006300;
+  --status-critical-text: #a5262d;
+  --status-warning-text: #7a5300;
+
+  /* The floating assistant launcher — the one deliberately dark surface, over page content rather
+   * than in the layout, so it is a fixed pair rather than a role in the surface ramp. */
+  --chat-launcher-bg: #14294a;
+  --chat-launcher-fg: #ffffff;
+  --chat-launcher-border: rgba(255, 255, 255, 0.16);
+
+  /*
+   * Interface accent, distinct from the series slots. The series palette encodes data and must not be
+   * spent on chrome, so an active tab borrows this pair instead of --series-1 directly: the ink is
+   * stepped dark enough to carry 11px type (6.6:1 on a card, 5.5:1 on its own wash), which --series-1
+   * at 4.4:1 does not.
+   */
+  --accent-ink: #1a5cad;
+  --accent-wash: color-mix(in srgb, var(--series-1) 14%, transparent);
+
+
+  /* Sequential blue ramp, for the heat map. */
+  --seq-100: #cde2fb;
+  --seq-200: #9ec5f4;
+  --seq-300: #6da7ec;
+  --seq-400: #3987e5;
+  --seq-500: #256abf;
+  --seq-600: #184f95;
+  --seq-700: #0d366b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --surface-page: #0d0d0d;
+    --surface-1: #17171a;
+    --surface-2: #202023;
+    --surface-raised: #1f1f22;
+
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #97958e;
+
+    --border-hairline: rgba(255, 255, 255, 0.12);
+    --border-strong: rgba(255, 255, 255, 0.22);
+    --card-border: rgba(255, 255, 255, 0.2);
+    --gridline: #2c2c2a;
+    --axis: #383835;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+
+    --status-good-text: #0ca30c;
+    --status-critical-text: #ef6f6f;
+    --status-warning-text: #fab219;
+
+    /* A step lighter than the light-theme navy, so the pill still reads as raised on a near-black
+     * page instead of sinking into it. */
+    --chat-launcher-bg: #1d3557;
+    --chat-launcher-border: rgba(255, 255, 255, 0.22);
+
+    --accent-ink: #5b9ef0;
+    --accent-wash: color-mix(in srgb, var(--series-1) 22%, transparent);
+
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-page: #0d0d0d;
+  --surface-1: #17171a;
+  --surface-2: #202023;
+  --surface-raised: #1f1f22;
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #97958e;
+
+  --border-hairline: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --card-border: rgba(255, 255, 255, 0.2);
+  --gridline: #2c2c2a;
+  --axis: #383835;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --status-good-text: #0ca30c;
+  --status-critical-text: #ef6f6f;
+  --status-warning-text: #fab219;
+
+  --chat-launcher-bg: #1d3557;
+  --chat-launcher-border: rgba(255, 255, 255, 0.22);
+
+  --accent-ink: #5b9ef0;
+  --accent-wash: color-mix(in srgb, var(--series-1) 22%, transparent);
+
+}
+
+@theme inline {
+  --color-page: var(--surface-page);
+  --color-surface: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--text-primary);
+  --color-ink-secondary: var(--text-secondary);
+  --color-ink-muted: var(--text-muted);
+  --color-hairline: var(--border-hairline);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  border-color: var(--border-hairline);
+}
+
+html,
+body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Columns of figures align; standalone hero numbers keep proportional figures. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(11, 11, 11, 0.05);
+}
+
+.hairline-b {
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+/* Recharts draws its own focus outlines; suppress the ones that land on wrappers. */
+.recharts-wrapper:focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
+.recharts-default-tooltip {
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  font-size: 12px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+}
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+/* ----------------------------------------------------------------- filter controls
+ *
+ * Native select, range and date widgets are drawn by the platform, so the filter row rendered as
+ * three different design systems side by side: Safari on macOS gives a select its own bevel, its own
+ * font and its own metrics and ignores the padding, while its range thumb is a different size again
+ * from Chrome's. Every control in the row is therefore reset to appearance: none and rebuilt from the
+ * tokens — which is also the only way they come out sharing one height.
+ *
+ * The prefixed properties are not redundant here: Safari only dropped the -webkit- requirement on
+ * appearance in 15.4, and the slider track and thumb have no unprefixed selector at all.
+ */
+:root {
+  /* Derived from the themed accent, so this one definition covers light and dark. */
+  --focus-ring: color-mix(in srgb, var(--series-1) 34%, transparent);
+}
+
+.filter-control {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  font: inherit;
+}
+
+/* Safari lays the value of a date input out in its own box; left-align it like every other control. */
+.filter-control::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+/* The picker glyph is dark ink on both themes by default, which is invisible on the dark surface. */
+.filter-control::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.55;
+}
+
+.filter-control::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .filter-control::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+}
+
+:root[data-theme="dark"] .filter-control::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/*
+ * The range pair. Track and thumb must be drawn once per engine — there is no selector both
+ * understand, and a rule listing both prefixes together is dropped by both. The thumb's negative
+ * margin is what centres it on a track thinner than itself: WebKit lays the thumb out from the
+ * track's top edge rather than its middle, so without it the thumb rides high.
+ */
+.filter-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.filter-range:focus-visible {
+  outline: none;
+}
+
+.filter-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--gridline);
+}
+
+.filter-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--series-1);
+  border: 2px solid var(--surface-2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+.filter-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.filter-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--gridline);
+}
+
+.filter-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--series-1);
+  border: 2px solid var(--surface-2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+.filter-range:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* Screen-reader-only, for table views that back a chart. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ----------------------------------------------------------------- the AI summary
+ *
+ * Two tiers of motion. The heading mark twinkles continuously, at rest as well as after a summary
+ * lands: it is an identity mark for the generated panel, so it is small in amplitude and long in
+ * period and never competes with the text. Everything else — the shimmer, the spinner, the quickened
+ * heading — is confined to the moment a summary is being written and stops when the text arrives, so
+ * "work is happening" stays a distinct signal rather than blending into the ambient motion.
+ *
+ * Every rule here is switched off under prefers-reduced-motion below.
+ */
+
+/* A band of light travelling left to right across a placeholder line. */
+@keyframes ai-shimmer {
+  0% {
+    background-position: -160% 0;
+  }
+  100% {
+    background-position: 260% 0;
+  }
+}
+
+.ai-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    var(--surface-2) 30%,
+    color-mix(in srgb, var(--series-1) 22%, var(--surface-2)) 50%,
+    var(--surface-2) 70%,
+    var(--surface-2) 100%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: ai-shimmer 1.6s linear infinite;
+}
+
+/* The heading sparkles. The large one breathes; the small one twinkles against it, offset so the
+ * pair never peaks together and the mark reads as alive rather than as a pulsing block. */
+@keyframes ai-twinkle {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.9) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08) rotate(9deg);
+  }
+}
+
+@keyframes ai-twinkle-sm {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.66);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+.ai-sparkle {
+  display: inline-block;
+  flex: none;
+}
+
+/* fill-box, so each star scales and turns about its own centre rather than the viewBox origin. */
+.ai-sparkle path {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.ai-sparkle-lg {
+  animation: ai-twinkle 3.6s ease-in-out infinite;
+}
+
+.ai-sparkle-sm {
+  animation: ai-twinkle-sm 3.6s ease-in-out 1.15s infinite;
+}
+
+/* The label, with a highlight drifting across it. Both ends of the gradient are legible text
+ * colours, so the sweep changes hue without ever dropping contrast below the static colour. */
+@keyframes ai-sheen {
+  0% {
+    background-position: 130% 0;
+  }
+  55%,
+  100% {
+    background-position: -55% 0;
+  }
+}
+
+.ai-title-text {
+  /* Clipped to the glyphs like the gradient is, so the letters the travelling image is not currently
+   * covering still have ink. Without it, background-repeat: no-repeat leaves them transparent. */
+  background-color: var(--text-primary);
+  background-image: linear-gradient(
+    100deg,
+    var(--text-primary) 0%,
+    var(--text-primary) 38%,
+    var(--series-1) 50%,
+    var(--text-primary) 62%,
+    var(--text-primary) 100%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: ai-sheen 5.4s ease-in-out infinite;
+}
+
+/* While writing: the same marks, quickened, and the sheen turns into a continuous linear sweep. */
+.ai-title[data-busy="true"] .ai-sparkle-lg {
+  animation-duration: 1.1s;
+}
+
+.ai-title[data-busy="true"] .ai-sparkle-sm {
+  animation-duration: 1.1s;
+  animation-delay: 0.35s;
+}
+
+.ai-title[data-busy="true"] .ai-title-text {
+  animation-duration: 1.5s;
+  animation-timing-function: linear;
+}
+
+/* The finished text settling into place. Runs once. */
+@keyframes ai-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-rise {
+  animation: ai-rise 380ms ease-out both;
+}
+
+/* Braille-dot spinner, stepped so it reads as discrete frames rather than a blur. */
+@keyframes ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-spinner {
+  display: inline-block;
+  animation: ai-spin 900ms steps(8, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-shimmer,
+  .ai-sparkle-lg,
+  .ai-sparkle-sm,
+  .ai-title-text,
+  .ai-rise,
+  .ai-spinner {
+    animation: none;
+  }
+  /* Without the travelling highlight the placeholder still has to look like a placeholder. */
+  .ai-shimmer {
+    background-image: none;
+    background-color: var(--surface-2);
+  }
+  /* The small star only ever reaches full opacity mid-animation, so give it a resting value. */
+  .ai-sparkle-sm {
+    opacity: 0.75;
+  }
+}
+
+/* The label is painted through the text itself, so anywhere the gradient cannot be relied on —
+ * reduced motion, print, or a browser without background-clip: text — it falls back to flat ink. */
+@media (prefers-reduced-motion: reduce), print {
+  .ai-title-text {
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text-primary);
+  }
+}
+
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .ai-title-text {
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text-primary);
+  }
+}
+
+/* ----------------------------------------------------------------- the assistant panel
+ *
+ * The panel is a floating surface over a dense page, so its entrance is short and small in travel:
+ * enough to read as "this opened here" and point at the launcher it came from, not enough to make the
+ * reader wait. The dots are the only continuous motion, and they only run while an answer is pending.
+ */
+@keyframes chat-open {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.chat-panel {
+  transform-origin: bottom right;
+  animation: chat-open 170ms ease-out both;
+}
+
+@keyframes chat-dot {
+  0%,
+  75%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.chat-dot {
+  animation: chat-dot 1.15s ease-in-out infinite;
+}
+
+/* A thin scrollbar, so the transcript does not lose 15px of a 376px-wide panel to a platform one. */
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--axis) transparent;
+  overscroll-behavior: contain;
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: var(--gridline);
+  border-radius: 999px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel,
+  .chat-dot,
+  .chat-launcher {
+    animation: none;
+    transition: none;
+  }
+  /* The dots carry "working" on their own once they stop moving, so hold them mid-animation. */
+  .chat-dot {
+    opacity: 0.7;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

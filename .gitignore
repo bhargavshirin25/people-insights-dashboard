@@ -1,0 +1,24 @@
+# Secrets — the local profile carries the Claude key and the Mongo connection string.
+**/application-local.yml
+.env
+.env.local
+
+# Java
+backend/target/
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+*.tsbuildinfo
+next-env.d.ts
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Excel lock files from the source data directory
+~$*.xlsx

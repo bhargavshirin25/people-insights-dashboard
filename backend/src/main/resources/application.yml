@@ -1,0 +1,118 @@
+spring:
+  application:
+    name: robin-insights-dashboard
+
+  datasource:
+    # MySQL in Docker on this machine. See docs/MYSQL.md for the container command.
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/people_insights?rewriteBatchedStatements=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8}
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:<MYSQL-PASSWORD-REMOVED>}
+    hikari:
+      # The dataset assembly issues its six reads concurrently, so the pool must not be the thing
+      # that serialises them.
+      maximum-pool-size: ${MYSQL_POOL_SIZE:12}
+      pool-name: people-insights-pool
+
+  sql:
+    init:
+      # Every statement is CREATE TABLE / CREATE INDEX IF NOT EXISTS, so running it on each start is
+      # idempotent and keeps the schema with the code rather than in someone's shell history.
+      mode: always
+      schema-locations: classpath:schema.sql
+      continue-on-error: false
+
+
+  # Entra (Azure AD) SSO lives in application-sso.yml. Spring validates client registrations
+  # eagerly and rejects an empty client-id, so the registration cannot be declared with blank
+  # placeholders here — activate the "sso" profile once tenant credentials exist.
+
+  servlet:
+    multipart:
+      # The data-source page accepts a spreadsheet or CSV. The row cap in ImportService is the real
+      # ceiling; this is the one that stops a mistaken upload from being read into memory at all.
+      max-file-size: 64MB
+      max-request-size: 65MB
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+# The one-way Mongo import (--migrate-from-mongo) reads this. Nothing else in the application touches
+# Mongo; leaving it set does not open a connection.
+migration:
+  mongodb:
+    uri: ${MONGODB_URI:mongodb+srv://<CREDENTIAL-REMOVED>@esscontroller.qkxrecm.mongodb.net/people_insights?retryWrites=true&w=majority&appName=esscontroller}
+    database: ${MONGODB_DATABASE:people_insights}
+
+server:
+  port: 8080
+  servlet:
+    session:
+      # Inactivity timeout; re-authentication is required after expiry.
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${COOKIE_SECURE:false}
+
+dashboard:
+  # Leave blank to anchor on the latest attendance month found at ingest. The supplied extract
+  # ends 31-Jul-2026, so anchoring on the wall clock would make every period metric empty.
+  as-of-date: ${DASHBOARD_AS_OF:2026-07-31}
+  dev-login-enabled: ${DEV_LOGIN_ENABLED:true}
+  dev-password: ${DEV_PASSWORD:<DEV-PASSWORD-REMOVED>}
+  audit-retention-days: 90
+  anomaly-denied-threshold: 5
+  anomaly-window-minutes: 60
+  # Assembled datasets held in memory between ingests. Set to 0 to read the collections on every
+  # request, which costs 15 to 80 seconds a view against a remote cluster.
+  dataset-cache-entries: ${DATASET_CACHE_ENTRIES:16}
+  # Upper bound on how long a re-ingest performed by another process can go unnoticed.
+  dataset-cache-revalidate-seconds: ${DATASET_CACHE_REVALIDATE_SECONDS:30}
+  # File import and the polled API sources on the data-source page. allow-private-hosts decides whether a
+  # configured URL may point at localhost or inside the network — true suits local development, and is the
+  # setting to turn off anywhere the server can reach more than the person configuring a feed should.
+  data-source:
+    polling-enabled: ${DATA_SOURCE_POLLING:true}
+    poll-tick-seconds: 15
+    request-timeout-seconds: 20
+    max-response-bytes: 5000000
+    max-records-per-run: 5000
+    allow-private-hosts: ${DATA_SOURCE_ALLOW_PRIVATE_HOSTS:true}
+
+  business-units:
+    - Customer Success
+    - Engineering
+    - Finance
+    - HR
+    - Marketing
+    - Operations
+    - Product
+    - Sales
+
+ingest:
+  source-directory: ${INGEST_DIR:/Users/nalamatibhargavshirin/Downloads/PEOPLE_INSIGHTS_DASHBOARD_DATA}
+  replace-existing: true
+
+claude:
+  api-key: ${CLAUDE_API_KEY:}
+  model: claude-sonnet-4-5
+  max-tokens: 700
+  timeout-seconds: 45
+  # The dashboard assistant. Its own model and ceilings: a chat turn arrives with up to fifty prior
+  # exchanges plus the whole dashboard brief behind it, which a 700-token narrative budget cannot hold.
+  # chat-effort trades reasoning depth against how long the reader waits — low | medium | high | xhigh |
+  # max. chat-history-messages counts user and assistant turns together, so 100 is fifty exchanges.
+  chat-model: ${CLAUDE_CHAT_MODEL:claude-opus-5}
+  chat-max-tokens: 8000
+  chat-effort: ${CLAUDE_CHAT_EFFORT:medium}
+  chat-timeout-seconds: 90
+  chat-history-messages: 100
+  chat-history-chars: 40000
+
+logging:
+  level:
+    com.leadsquared.peopleinsights: INFO
+    AUDIT_ALERT: WARN
+    org.apache.poi: WARN
