@@ -3,9 +3,12 @@ package com.leadsquared.peopleinsights.metrics;
 import com.leadsquared.peopleinsights.domain.AttendanceMonth;
 import com.leadsquared.peopleinsights.domain.Employee;
 import com.leadsquared.peopleinsights.domain.LeaveBalance;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,6 +66,8 @@ public class LeaveAttendanceService {
   public record LeaveAttendanceView(
       String businessUnit,
       List<String> monthsCovered,
+      /** Months inside {@code monthsCovered} that the selected Period narrows "Attendance by team" to. */
+      List<String> teamHealthMonths,
       List<LeaveTypeStat> leaveUtilisation,
       double lopDaysTotal,
       List<TeamHealth> teamHealth,
@@ -78,10 +83,13 @@ public class LeaveAttendanceService {
     List<TeamHealth> teams = teamHealth(data);
     List<EmployeeLeaveRow> zeroLeave = canSeeIndividuals ? zeroLeave(data) : List.of();
     List<EmployeeLeaveRow> unplanned = canSeeIndividuals ? excessiveUnplanned(data) : List.of();
+    List<String> teamHealthMonths =
+        data.attendanceMonths().stream().filter(periodMonthKeys(data)::contains).sorted().toList();
 
     return new LeaveAttendanceView(
         data.label(),
         data.attendanceMonths(),
+        teamHealthMonths,
         leaveUtilisation(data),
         lopDays(data),
         teams,
@@ -164,25 +172,49 @@ public class LeaveAttendanceService {
 
   /** LOP is an attendance state, not a leave balance, so it comes from the attendance register. */
   private double lopDays(Dataset data) {
+    Set<String> window = periodMonthKeys(data);
     return data.attendance().values().stream()
         .flatMap(List::stream)
+        .filter(m -> window.contains(m.yearMonth()))
         .mapToInt(AttendanceMonth::lopDays)
         .sum();
+  }
+
+  /**
+   * The attendance months the selected Period covers, intersected with what the extract actually
+   * holds (Feb–Jul 2026). A custom range outside that span yields no months, which every caller
+   * already treats as "no data" rather than a special case.
+   */
+  private static Set<String> periodMonthKeys(Dataset data) {
+    LocalDate asOf = data.asOf();
+    YearMonth from = YearMonth.from(data.filters().periodStart(asOf));
+    YearMonth to = YearMonth.from(data.filters().periodEnd(asOf));
+    Set<String> keys = new LinkedHashSet<>();
+    for (YearMonth cursor = from; !cursor.isAfter(to); cursor = cursor.plusMonths(1)) {
+      keys.add(cursor.toString());
+    }
+    return keys;
   }
 
   // ---------------------------------------------------------------- team health
 
   /**
-   * Attendance health per team, aggregated across every month in the data.
+   * Attendance health per team, aggregated across the months the selected Period covers — unlike the
+   * headline cards and the risk model, which use their own fixed named windows, this panel is a direct
+   * roll-up of the attendance register and has no other natural window than the one the reader picked.
    *
    * <p>The health score is the present-day rate with half days credited at half weight, penalised for
    * loss-of-pay days, which is the state HR treats as most serious.
    */
   private List<TeamHealth> teamHealth(Dataset data) {
+    Set<String> window = periodMonthKeys(data);
     Map<String, List<AttendanceMonth>> byTeam = new LinkedHashMap<>();
     Map<String, Set<String>> membersByTeam = new LinkedHashMap<>();
     for (var entry : data.attendance().entrySet()) {
       for (AttendanceMonth m : entry.getValue()) {
+        if (!window.contains(m.yearMonth())) {
+          continue;
+        }
         String team = m.department() == null ? "Unassigned" : m.department();
         byTeam.computeIfAbsent(team, k -> new ArrayList<>()).add(m);
         membersByTeam.computeIfAbsent(team, k -> new java.util.HashSet<>()).add(m.employeeId());

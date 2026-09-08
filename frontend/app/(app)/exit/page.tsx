@@ -156,15 +156,15 @@ avg score = Σ theme score / theme mentions"
             </Panel>
 
             <Panel
-              title="Tenure band of leavers"
+              title="Tenure band of exiters"
               subtitle="Where in the employee lifecycle exits occur"
               info={
                 <InfoTip
-                  label="the tenure band of leavers"
+                  label="the tenure band of exiters"
                   method="A count of exits in each tenure band as recorded on the exit interview, ordered by length of service rather than by size, so the shape of the lifecycle is readable."
                   formula="bar length = count of exits in the band
 share = band count / total exits in range × 100"
-                  caveat="Counts leavers, not risk: a large band may simply be where most of the headcount sits. Bands come from the source workbook and are not recomputed from joining dates."
+                  caveat="Counts exiters, not risk: a large band may simply be where most of the headcount sits. Bands come from the source workbook and are not recomputed from joining dates."
                 />
               }
             >

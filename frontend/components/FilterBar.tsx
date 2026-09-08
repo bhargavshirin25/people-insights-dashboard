@@ -4,8 +4,44 @@ import { Badge, Button } from "@/components/ui";
 import { useFilters } from "@/lib/filters";
 import { PERIOD_LABELS } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+
+/**
+ * Whether choosing a different Period actually changes anything on the current page, and — for a
+ * page where it only partly does — why.
+ *
+ * Grade, location, department and tenure narrow the employee set everywhere. Period fully reshapes
+ * the exit-analysis window; it reshapes one panel on Leave & attendance and one column on the heat
+ * map, and nothing on the rest — those pages' other metrics are fixed, named windows (a
+ * reporting-date snapshot, a rolling three months, FY-to-date) that do not move with this control.
+ * See `docs/DATA-NOTES.md` / `MetricsService`, `RiskScoringService`, `PerformanceService` and
+ * `LeaveAttendanceService` for the underlying calculations.
+ */
+type PeriodEffect = "full" | "partial" | "none";
+
+const NONE_HINT =
+  "This page's metrics use fixed reporting-date windows (a snapshot, a rolling quarter, FY-to-date) — choosing a different period does not change them.";
+
+const PARTIAL_HINT: Record<string, string> = {
+  "/heatmap":
+    'Only the "Exits in period" column changes with Period here; every other column uses a fixed reporting-date window.',
+  "/leave-attendance":
+    'Only "Attendance by team" (and its anomaly flags and loss-of-pay total) changes with Period here; leave utilisation and the burnout/unplanned-absence lists use their own fixed windows (FY-to-date, six months, three months).',
+};
+
+function periodEffectForRoute(pathname: string): PeriodEffect {
+  if (pathname === "/exit") return "full";
+  if (pathname in PARTIAL_HINT) return "partial";
+  return "none";
+}
+
+function periodHintForRoute(pathname: string, effect: PeriodEffect): string | undefined {
+  if (effect === "none") return NONE_HINT;
+  if (effect === "partial") return PARTIAL_HINT[pathname];
+  return undefined;
+}
 
 /*
  * The shells every control in the row is built from.
@@ -32,7 +68,7 @@ const CHIP =
 const LABEL = "whitespace-nowrap text-[11px] font-medium text-[var(--text-secondary)]";
 
 /**
- * The multi-level filter row: BU, grade band, location, tenure range and period.
+ * The multi-level filter row: BU, grade band, location, department, tenure range and period.
  *
  * One row above the views, and one shared state, so every card and chart moves together on a change.
  * The BU control only ever lists the units the session is scoped to; naming another one is refused by
@@ -42,6 +78,9 @@ export function FilterBar() {
   const { filters, options, setFilters, reset, activeCount } = useFilters();
   const { session } = useSession();
   const businessUnits = options?.businessUnits ?? session?.assignedBus ?? [];
+  const pathname = usePathname();
+  const periodEffect = periodEffectForRoute(pathname);
+  const periodHint = periodHintForRoute(pathname, periodEffect);
 
   return (
     <div className="card no-print flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
@@ -49,9 +88,19 @@ export function FilterBar() {
         <SelectField
           label="Business unit"
           value={filters.bu ?? "ALL"}
-          onChange={(value) => setFilters({ bu: value === "ALL" ? null : value })}
+          onChange={(value) =>
+            // Grade/location/department options are scoped to the selected BU, so a selection made
+            // under the previous one may no longer exist — clear them rather than leave a filter
+            // silently matching nothing.
+            setFilters({
+              bu: value === "ALL" ? null : value,
+              grades: [],
+              locations: [],
+              departments: [],
+            })
+          }
         >
-          <option value="ALL">All in my scope</option>
+          <option value="ALL">All</option>
           {businessUnits.map((bu) => (
             <option key={bu} value={bu}>
               {bu}
@@ -76,6 +125,13 @@ export function FilterBar() {
         onChange={(locations) => setFilters({ locations })}
       />
 
+      <MultiSelect
+        label="Department"
+        options={options?.departments ?? []}
+        selected={filters.departments}
+        onChange={(departments) => setFilters({ departments })}
+      />
+
       <TenureRange
         max={Math.max(1, Math.round(options?.tenureMaxYears ?? 20))}
         min={filters.tenureMin}
@@ -83,17 +139,18 @@ export function FilterBar() {
         onChange={(tenureMin, tenureMax) => setFilters({ tenureMin, tenureMax })}
       />
 
-      <SelectField
-        label="Period"
+      <PeriodField
         value={filters.period}
         onChange={(period) => setFilters({ period })}
+        effect={periodEffect}
+        hint={periodHint}
       >
         {Object.entries(PERIOD_LABELS).map(([value, label]) => (
           <option key={value} value={value}>
             {label}
           </option>
         ))}
-      </SelectField>
+      </PeriodField>
 
       {filters.period === "CUSTOM" && (
         <span className="inline-flex items-center gap-1.5">
@@ -182,6 +239,60 @@ function SelectField({
         </select>
         <Chevron className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-[var(--text-muted)]" />
       </span>
+    </label>
+  );
+}
+
+/**
+ * The Period control, dimmed on pages it does not affect and marked when its effect is partial —
+ * see {@link periodEffectForRoute} / {@link periodHintForRoute}. The other controls in this row
+ * (grade, location, department, tenure) narrow the employee set on every page, so only Period needs
+ * this treatment.
+ */
+function PeriodField({
+  value,
+  onChange,
+  effect,
+  hint,
+  children,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  effect: PeriodEffect;
+  hint?: string;
+  children: ReactNode;
+}) {
+  const dimmed = effect !== "full";
+  // Partial still does something on this page (one panel or column), so it stays choosable. "None"
+  // changes nothing at all, so the control is properly disabled, not just dimmed — a select a reader
+  // can still operate but that does nothing is worse than one that visibly can't.
+  const disabled = effect === "none";
+
+  return (
+    <label className="inline-flex items-center gap-1.5" title={hint}>
+      <span className={LABEL} style={dimmed ? { opacity: 0.55 } : undefined}>
+        Period
+      </span>
+      <span
+        className="relative inline-flex items-center"
+        style={dimmed ? { opacity: 0.55 } : undefined}
+      >
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          aria-disabled={disabled}
+          className={`${SELECT} disabled:cursor-not-allowed`}
+        >
+          {children}
+        </select>
+        <Chevron className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-[var(--text-muted)]" />
+      </span>
+      {dimmed && (
+        <span className="text-[9.5px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+          {effect === "none" ? "· not used here" : "· partial"}
+        </span>
+      )}
     </label>
   );
 }

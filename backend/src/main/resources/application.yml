@@ -61,6 +61,11 @@ dashboard:
   # ends 31-Jul-2026, so anchoring on the wall clock would make every period metric empty.
   as-of-date: ${DASHBOARD_AS_OF:2026-07-31}
   dev-login-enabled: ${DEV_LOGIN_ENABLED:true}
+  # Where the browser lands after a successful (or failed) Entra login. Defaults are correct when
+  # the backend is reached directly; behind a reverse proxy that rewrites Host (Next's rewrites() in
+  # this app), override both with an absolute, browser-facing origin — see SecurityConfig.
+  post-login-redirect-url: ${POST_LOGIN_REDIRECT_URL:/}
+  login-failure-redirect-url: ${LOGIN_FAILURE_REDIRECT_URL:/login?error}
   dev-password: ${DEV_PASSWORD:<DEV-PASSWORD-REMOVED>}
   audit-retention-days: 90
   anomaly-denied-threshold: 5
@@ -80,6 +85,13 @@ dashboard:
     max-response-bytes: 5000000
     max-records-per-run: 5000
     allow-private-hosts: ${DATA_SOURCE_ALLOW_PRIVATE_HOSTS:true}
+
+  # Addresses provisioned into the built-in full-access role at startup. Not secret — just who gets
+  # full access on first sign-in.
+  full-access-emails:
+    - hr.automation@leadsquared.com
+    - nalamati.shirin@leadsquared.com
+    - rohit.panwar@leadsquared.com
 
   business-units:
     - Customer Success

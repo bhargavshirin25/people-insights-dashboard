@@ -7,8 +7,15 @@
 #   AZURE_CLIENT_SECRET   Client secret value
 #   AZURE_ISSUER_URI      https://login.microsoftonline.com/<tenant-id>/v2.0
 #
-# Register this redirect URI in the Entra app registration:
-#   http://localhost:8080/login/oauth2/code/azure     (production: the deployed https origin)
+# Register this exact redirect URI in the Entra app registration (Authentication > Web platform):
+#   http://localhost:3000/api/auth/callback/azure-ad     (production: the deployed https origin,
+#   same path)
+#
+# The path is fixed in code — SecurityConfig.OAUTH2_CALLBACK_PATH — because Spring's own default
+# ("/login/oauth2/code/{registrationId}") is what the redirect URI in this file used to be. If the
+# two ever drift apart, the callback filter stops matching incoming requests: Microsoft redirects
+# back correctly, but nothing exchanges the code, and the request falls through to the ordinary
+# authorization rules instead — an authentication error, not an "SSO isn't configured" one.
 #
 # Once this profile is active, EntraOidcUserService becomes the sign-in path. The IdP supplies
 # identity only — role and BU assignment still come from app_users / bu_assignments, so a valid
@@ -26,7 +33,7 @@ spring:
             client-secret: ${AZURE_CLIENT_SECRET}
             scope: openid, profile, email
             authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: ${AZURE_REDIRECT_URI:{baseUrl}/api/auth/callback/azure-ad}
         provider:
           azure:
             issuer-uri: ${AZURE_ISSUER_URI}

@@ -44,6 +44,9 @@ public class SecurityConfig {
 
   private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
+  /** Must match the redirect URI registered on the Entra app registration exactly. */
+  private static final String OAUTH2_CALLBACK_PATH = "/api/auth/callback/azure-ad";
+
   private final AppProperties props;
   private final AccessPolicy policy;
 
@@ -67,7 +70,22 @@ public class SecurityConfig {
   }
 
   @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http, EntraOidcUserService oidcUserService)
+  public SecurityFilterChain filterChain(
+      HttpSecurity http,
+      EntraOidcUserService oidcUserService,
+      // Where to send the browser after a successful Entra login. Spring's default behaviour
+      // replays the URL that originally triggered the login flow — reconstructed from the request
+      // it received, which is wrong here: Next's rewrite proxy always sets Host to its own
+      // destination, so that URL is the internal, browser-unreachable http://backend:8080. An
+      // explicit, absolute target sidesteps that reconstruction rather than trying to fix it.
+      @org.springframework.beans.factory.annotation.Value("${dashboard.post-login-redirect-url:/}")
+          String postLoginRedirectUrl,
+      // Same problem, failure branch: a rejected or cancelled login (wrong tenant, an unprovisioned
+      // account, the user hitting back) would otherwise also redirect through the reconstructed,
+      // unreachable backend:8080 URL.
+      @org.springframework.beans.factory.annotation.Value(
+              "${dashboard.login-failure-redirect-url:/login?error}")
+          String loginFailureRedirectUrl)
       throws Exception {
 
     var csrfHandler = new CsrfTokenRequestAttributeHandler();
@@ -99,7 +117,11 @@ public class SecurityConfig {
          */
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers("/api/auth/login", "/api/auth/session", "/api/auth/microsoft")
+                auth.requestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/session",
+                        "/api/auth/microsoft",
+                        OAUTH2_CALLBACK_PATH)
                     .permitAll()
                     .requestMatchers("/actuator/health")
                     .permitAll()
@@ -167,7 +189,16 @@ public class SecurityConfig {
     // Only register the SSO path once a client registration exists, otherwise Spring fails to start.
     if (oidcUserService.isSsoConfigured()) {
       http.oauth2Login(
-          login -> login.userInfoEndpoint(info -> info.oidcUserService(oidcUserService)));
+          login ->
+              login
+                  .userInfoEndpoint(info -> info.oidcUserService(oidcUserService))
+                  // Matches the path registered in the Entra app registration. Spring's own default
+                  // ("/login/oauth2/code/{registrationId}") would otherwise be the only path this
+                  // filter answers on — a callback arriving anywhere else falls through to the
+                  // authorization rules below and is rejected as an ordinary unauthenticated request.
+                  .redirectionEndpoint(redirection -> redirection.baseUri(OAUTH2_CALLBACK_PATH))
+                  .defaultSuccessUrl(postLoginRedirectUrl, true)
+                  .failureUrl(loginFailureRedirectUrl));
     }
 
     if (!props.isDevLoginEnabled() && !oidcUserService.isSsoConfigured()) {

@@ -80,6 +80,7 @@ export function filterQuery(params: {
   bu?: string | null;
   grades?: string[];
   locations?: string[];
+  departments?: string[];
   tenureMin?: number | null;
   tenureMax?: number | null;
   period?: string;
@@ -91,6 +92,7 @@ export function filterQuery(params: {
   if (params.bu) q.set("bu", params.bu);
   params.grades?.forEach((g) => q.append("grade", g));
   params.locations?.forEach((l) => q.append("location", l));
+  params.departments?.forEach((d) => q.append("department", d));
   if (params.tenureMin != null) q.set("tenureMin", String(params.tenureMin));
   if (params.tenureMax != null) q.set("tenureMax", String(params.tenureMax));
   if (params.period) q.set("period", params.period);

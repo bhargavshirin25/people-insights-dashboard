@@ -206,6 +206,7 @@ public class NarrativeService {
       sb.append("Active filters: ")
           .append("grades=").append(data.filters().grades())
           .append(", locations=").append(data.filters().locations())
+          .append(", departments=").append(data.filters().departments())
           .append(", tenure=").append(data.filters().tenureMinYears())
           .append("-").append(data.filters().tenureMaxYears())
           .append('\n');

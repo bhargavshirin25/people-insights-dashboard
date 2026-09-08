@@ -16,6 +16,13 @@ const STATE_SERIES = [
   { key: "lopRatePct", label: "Loss of pay", color: SERIES[1] },
 ];
 
+/** "Jul 2026" for one month in range, "May 2026 to Jul 2026" for a span, or a no-data note. */
+function periodMonthsLabel(months: string[]): string {
+  if (months.length === 0) return "no months in the selected period";
+  if (months.length === 1) return formatMonth(months[0]);
+  return `${formatMonth(months[0])} to ${formatMonth(months.at(-1))}`;
+}
+
 export default function LeaveAttendancePage() {
   const { data, loading, error } = useViewData<LeaveAttendanceView>("/api/insights/leave-attendance");
 
@@ -126,19 +133,25 @@ flag when ≥ 1.5 · High ≥ 2.5 · Medium ≥ 2.0 · Low ≥ 1.5"
 
           <Panel
             title="Attendance by team"
-            subtitle="Aggregated, never per individual. Teams with fewer than five people are suppressed."
+            subtitle={`Aggregated, never per individual. Teams with fewer than five people are suppressed. Covers ${periodMonthsLabel(data.teamHealthMonths)}.`}
             info={
               <InfoTip
                 label="attendance by team"
                 method="Day counts are summed across every employee-month in the team, then divided by summed working days. The state columns are plain shares of working days and sum to 100%. The health column is a composite index on a 0–100 scale — present days in full, half days at half weight, less the loss-of-pay rate."
                 formula="state % = Σ days in state / Σ working days × 100
 health = max(0, present % + ½ · half-day % − LOP %)"
-                caveat="Health is an index, not a rate: loss of pay counts twice by design, excluded from present then subtracted again. Aggregated over every month in the extract, so the period filter does not narrow it."
+                caveat="Health is an index, not a rate: loss of pay counts twice by design, excluded from present then subtracted again. Aggregated over the months the Period filter selects, intersected with the months the extract actually holds (Feb–Jul 2026) — unlike the headline cards and the risk model, this panel has no other natural window than the one you pick."
               />
             }
           >
             {data.teamHealth.length === 0 ? (
-              <Empty />
+              <Empty
+                label={
+                  data.teamHealthMonths.length === 0
+                    ? "The selected period falls outside the attendance register (Feb–Jul 2026), so there are no months to aggregate."
+                    : undefined
+                }
+              />
             ) : (
               <>
                 <h3 className="mb-2 flex items-center gap-1.5 text-[11.5px] font-semibold">

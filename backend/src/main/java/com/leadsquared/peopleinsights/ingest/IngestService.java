@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.ss.usermodel.Row;
@@ -77,6 +78,14 @@ public class IngestService {
   private final JdbcTemplate jdbc;
   private final DatasetCache datasets;
 
+  /**
+   * Guards against a second run starting while one is in flight. Each run holds every workbook's
+   * DOM in memory at once (POI is not streaming here), so two concurrent runs — a slow request
+   * followed by an impatient retry — roughly double peak heap and can turn a run that would have
+   * fit into an OutOfMemoryError.
+   */
+  private final AtomicBoolean running = new AtomicBoolean(false);
+
   public IngestService(
       IngestProperties props, Store store, JdbcTemplate jdbc, DatasetCache datasets) {
     this.props = props;
@@ -86,43 +95,51 @@ public class IngestService {
   }
 
   public IngestRun run() {
-    Instant started = Instant.now();
-    File dir = new File(props.getSourceDirectory());
-    if (!dir.isDirectory()) {
+    if (!running.compareAndSet(false, true)) {
       throw new IllegalStateException(
-          "ingest.source-directory is not a directory: " + dir.getAbsolutePath());
+          "An ingest is already running. Wait for it to finish before starting another.");
     }
-    log.info("Ingesting HR Ops datasets from {}", dir.getAbsolutePath());
+    try {
+      Instant started = Instant.now();
+      File dir = new File(props.getSourceDirectory());
+      if (!dir.isDirectory()) {
+        throw new IllegalStateException(
+            "ingest.source-directory is not a directory: " + dir.getAbsolutePath());
+      }
+      log.info("Ingesting HR Ops datasets from {}", dir.getAbsolutePath());
 
-    Map<String, Integer> counts = new LinkedHashMap<>();
-    List<String> warnings = new ArrayList<>();
+      Map<String, Integer> counts = new LinkedHashMap<>();
+      List<String> warnings = new ArrayList<>();
 
-    // Employee master first: it is the spine every other dataset is checked against.
-    Map<String, Employee> employees = ingestEmployees(dir, counts, warnings);
-    ingestCompensation(dir, employees, counts, warnings);
-    ingestLeave(dir, employees, counts, warnings);
-    String asOf = ingestAttendance(dir, employees, counts, warnings);
-    ingestEnps(dir, employees, counts, warnings);
-    ingestExits(dir, employees, counts, warnings);
+      // Employee master first: it is the spine every other dataset is checked against.
+      Map<String, Employee> employees = ingestEmployees(dir, counts, warnings);
+      ingestCompensation(dir, employees, counts, warnings);
+      ingestLeave(dir, employees, counts, warnings);
+      String asOf = ingestAttendance(dir, employees, counts, warnings);
+      ingestEnps(dir, employees, counts, warnings);
+      ingestExits(dir, employees, counts, warnings);
 
-    IngestRun run =
-        IngestRun.of(
-            UUID.randomUUID().toString(),
-            started,
-            Instant.now(),
-            dir.getAbsolutePath(),
-            counts,
-            warnings,
-            asOf,
-            "SUCCESS");
-    store.insert(run);
+      IngestRun run =
+          IngestRun.of(
+              UUID.randomUUID().toString(),
+              started,
+              Instant.now(),
+              dir.getAbsolutePath(),
+              counts,
+              warnings,
+              asOf,
+              "SUCCESS");
+      store.insert(run);
 
-    // The people collections have just been replaced wholesale, so anything assembled from the
-    // previous snapshot is now wrong rather than merely old.
-    datasets.invalidateAll();
+      // The people collections have just been replaced wholesale, so anything assembled from the
+      // previous snapshot is now wrong rather than merely old.
+      datasets.invalidateAll();
 
-    log.info("Ingest complete: {} (data as of {}), {} warnings", counts, asOf, warnings.size());
-    return run;
+      log.info("Ingest complete: {} (data as of {}), {} warnings", counts, asOf, warnings.size());
+      return run;
+    } finally {
+      running.set(false);
+    }
   }
 
   // ---------------------------------------------------------------- employee master + PMS

@@ -129,6 +129,54 @@ function ChartTooltip({
 }
 
 /**
+ * Value label for {@link RankedBars}, placed just past the bar's tip in the direction away from the
+ * zero baseline — outside the bar for a positive value, same as Recharts' built-in "right" position.
+ *
+ * <p>Recharts' own "right" position instead moves further away from the baseline for a negative
+ * value, i.e. further from zero, toward the category axis — for a value whose tip already sits near
+ * the axis (the largest bar in an all-negative chart, such as the rating-change-by-team chart), that
+ * pushes the label into the row's own category label with no room left for it. Anchoring on the
+ * tip's fixed screen side rather than mirroring the sign gives a negative bar's label nowhere to land
+ * but into the (empty, already-reserved) space on the baseline side instead — which happens to look
+ * like the label sitting just inside the bar, near its tip, which is why the colour switches to a
+ * light one there for contrast against the fill.
+ */
+function rankedBarValueLabel(valueSuffix: string) {
+  return function RankedBarValueLabel(props: {
+    x?: string | number;
+    y?: string | number;
+    width?: string | number;
+    height?: string | number;
+    value?: string | number;
+  }) {
+    const { x, y, width, height, value } = props;
+    if (value == null) {
+      return null;
+    }
+    const xNum = Number(x ?? 0);
+    const yNum = Number(y ?? 0);
+    const widthNum = Number(width ?? 0);
+    const heightNum = Number(height ?? 0);
+    const tip = xNum + widthNum;
+    const insideBar = widthNum < 0;
+    return (
+      <text
+        x={tip + 5}
+        y={yNum + heightNum / 2}
+        textAnchor="start"
+        dominantBaseline="central"
+        fontSize={10.5}
+        fill={insideBar ? "#fff" : "var(--text-secondary)"}
+        style={{ fontVariantNumeric: "tabular-nums" }}
+      >
+        {value}
+        {valueSuffix}
+      </text>
+    );
+  };
+}
+
+/**
  * Horizontal bars for ranked categories with long labels — exit themes, teams.
  *
  * Values are direct-labelled at the bar end, which is both the readability choice for a ranked list
@@ -170,12 +218,7 @@ export function RankedBars({
             {data.map((d, i) => (
               <Cell key={i} fill={d.tone ?? color} />
             ))}
-            <LabelList
-              dataKey="value"
-              position="right"
-              formatter={(v: number) => `${v}${valueSuffix}`}
-              style={{ fontSize: 10.5, fill: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}
-            />
+            <LabelList dataKey="value" content={rankedBarValueLabel(valueSuffix)} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

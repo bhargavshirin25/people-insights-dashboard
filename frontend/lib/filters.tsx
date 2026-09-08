@@ -17,6 +17,7 @@ export interface FilterState {
   bu: string | null;
   grades: string[];
   locations: string[];
+  departments: string[];
   tenureMin: number | null;
   tenureMax: number | null;
   period: string;
@@ -28,6 +29,7 @@ export const EMPTY_FILTERS: FilterState = {
   bu: null,
   grades: [],
   locations: [],
+  departments: [],
   tenureMin: null,
   tenureMax: null,
   period: "LAST_30_DAYS",
@@ -91,13 +93,15 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     setHydrated(true);
   }, [session, hydrated]);
 
+  // Re-fetched whenever the selected BU changes, since grade/location/department options are scoped to
+  // it — a Finance-only department has no business in the Engineering dropdown.
   useEffect(() => {
-    if (!session?.authenticated) return;
+    if (!session?.authenticated || !hydrated) return;
     api
-      .get<FilterOptions>("/api/dashboard/filter-options")
+      .get<FilterOptions>(`/api/dashboard/filter-options${filterQuery({ bu: filters.bu })}`)
       .then(setOptions)
       .catch(() => setOptions(null));
-  }, [session?.authenticated]);
+  }, [session?.authenticated, hydrated, filters.bu]);
 
   const persist = useCallback((next: FilterState) => {
     try {
@@ -133,6 +137,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         bu: filters.bu,
         grades: filters.grades,
         locations: filters.locations,
+        departments: filters.departments,
         tenureMin: filters.tenureMin,
         tenureMax: filters.tenureMax,
         period: filters.period,
@@ -146,6 +151,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const activeCount =
     filters.grades.length +
     filters.locations.length +
+    filters.departments.length +
     (filters.tenureMin != null || filters.tenureMax != null ? 1 : 0) +
     (filters.period !== "LAST_30_DAYS" ? 1 : 0);
 

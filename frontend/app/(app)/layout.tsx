@@ -246,34 +246,47 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         <div className="mx-auto max-w-[1600px] space-y-4 px-4 py-4 sm:px-5">
-          {visible.length === 0 && (
-            <div
-              className="card p-4"
-              style={{ borderLeftWidth: 3, borderLeftColor: "var(--status-warning)" }}
-            >
-              <h2 className="text-[12.5px] font-semibold">No access has been granted to this account</h2>
-              <p className="mt-1 text-[11.5px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+          {visible.length === 0 ? (
+            // No role names this address, so no endpoint behind this shell would return anything but a
+            // 403 — rendering the routed page underneath would just repeat this same fact in a second,
+            // uglier box once its own fetch fails. One clear state instead of two stacked ones.
+            <div className="card flex flex-col items-center gap-3 px-6 py-16 text-center">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  background: "color-mix(in srgb, var(--status-warning) 20%, transparent)",
+                  color: "var(--status-warning-text)",
+                }}
+                aria-hidden="true"
+              >
+                <NoAccessIcon />
+              </span>
+              <h2 className="text-[14px] font-semibold">No access has been granted to this account</h2>
+              <p className="max-w-md text-[12px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                 Access on this dashboard comes from a role assigned to your email address. Nobody has
-                assigned one to {session.email} yet, so there is nothing to show. Ask whoever administers
-                access to add you to a role.
+                assigned one to <strong>{session.email}</strong> yet, so there is nothing to show. Ask
+                whoever administers access to add you to a role.
               </p>
             </div>
+          ) : (
+            <>
+              {filteredView && <FilterBar />}
+              {/* The aggregation notice belongs with the employee data it describes, not above a config screen. */}
+              {!session.canSeeIndividualPii && filteredView && (
+                <div
+                  className="card px-3 py-2 text-[11px]"
+                  style={{ borderLeftWidth: 3, borderLeftColor: "var(--status-warning)", color: "var(--text-secondary)" }}
+                >
+                  <Badge tone="warning" glyph="◆">
+                    Aggregated view
+                  </Badge>{" "}
+                  Your role sees anonymised, aggregated metrics only. Employee names, identifiers and
+                  individual-level data are withheld.
+                </div>
+              )}
+              {children}
+            </>
           )}
-          {filteredView && <FilterBar />}
-          {/* The aggregation notice belongs with the employee data it describes, not above a config screen. */}
-          {!session.canSeeIndividualPii && filteredView && (
-            <div
-              className="card px-3 py-2 text-[11px]"
-              style={{ borderLeftWidth: 3, borderLeftColor: "var(--status-warning)", color: "var(--text-secondary)" }}
-            >
-              <Badge tone="warning" glyph="◆">
-                Aggregated view
-              </Badge>{" "}
-              Your role sees anonymised, aggregated metrics only. Employee names, identifiers and
-              individual-level data are withheld.
-            </div>
-          )}
-          {children}
         </div>
 
         {/* Bottom padding on the phone so the last line of a view clears the assistant's launcher. */}
@@ -288,5 +301,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <ChatWidget />
       </div>
     </FilterProvider>
+  );
+}
+
+/** A key with no way in — this account holds no role, so nothing on the dashboard opens for it. */
+function NoAccessIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="8.5" cy="8.5" r="4" />
+      <path d="M11.5 11.5 20 20M20 20v-4.5M20 20h-4.5" />
+    </svg>
   );
 }

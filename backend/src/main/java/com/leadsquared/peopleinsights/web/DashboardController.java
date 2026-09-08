@@ -121,14 +121,21 @@ public class DashboardController {
       List<String> businessUnits,
       List<String> grades,
       List<String> locations,
+      List<String> departments,
       double tenureMaxYears,
       List<String> periods,
       String asOf) {}
 
-  /** Filter options limited to the values that exist inside the caller's own scope. */
+  /**
+   * Filter options limited to the values that exist inside the caller's own scope, narrowed further to
+   * {@code bu} when one is selected — a Finance-only department has no business appearing in the
+   * Engineering dropdown. The business-unit list itself is the exception: it always reflects the
+   * caller's full assignment ({@code scope().allowedBus()}), never the one currently selected, since
+   * that is the control used to change it.
+   */
   @GetMapping("/filter-options")
-  public FilterOptions filterOptions() {
-    var scoped = guard.resolve(null, "HEADCOUNT", "VIEW_FILTER_OPTIONS");
+  public FilterOptions filterOptions(@RequestParam(required = false) String bu) {
+    var scoped = guard.resolve(bu, "HEADCOUNT", "VIEW_FILTER_OPTIONS");
     List<Employee> inScope = employees.findByVerticalIn(scoped.businessUnits());
     var asOf = asOfService.asOf();
 
@@ -145,6 +152,12 @@ public class DashboardController {
         inScope.stream().map(Employee::grade).filter(java.util.Objects::nonNull).distinct().sorted().toList(),
         inScope.stream()
             .map(Employee::officeLocation)
+            .filter(java.util.Objects::nonNull)
+            .distinct()
+            .sorted(Comparator.naturalOrder())
+            .toList(),
+        inScope.stream()
+            .map(Employee::department)
             .filter(java.util.Objects::nonNull)
             .distinct()
             .sorted(Comparator.naturalOrder())

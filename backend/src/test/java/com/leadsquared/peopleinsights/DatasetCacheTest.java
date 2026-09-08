@@ -117,7 +117,8 @@ class DatasetCacheTest {
     DatasetCache cache = cache(runsAt("run-1"), 16);
     AtomicInteger loads = new AtomicInteger();
     FilterSpec bengaluru =
-        new FilterSpec(List.of(), List.of("Bengaluru"), null, null, "LAST_30_DAYS", null, null);
+        new FilterSpec(
+            List.of(), List.of("Bengaluru"), List.of(), null, null, "LAST_30_DAYS", null, null);
 
     get(cache, List.of("Engineering"), FilterSpec.none(), loads);
     get(cache, List.of("Engineering"), bengaluru, loads);
@@ -163,7 +164,8 @@ class DatasetCacheTest {
 
     for (int i = 0; i < 8; i++) {
       FilterSpec filters =
-          new FilterSpec(List.of("G" + i), List.of(), null, null, "LAST_30_DAYS", null, null);
+          new FilterSpec(
+              List.of("G" + i), List.of(), List.of(), null, null, "LAST_30_DAYS", null, null);
       get(cache, List.of("Engineering"), filters, loads);
     }
 

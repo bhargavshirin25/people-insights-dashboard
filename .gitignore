@@ -22,3 +22,6 @@ next-env.d.ts
 
 # Excel lock files from the source data directory
 ~$*.xlsx
+
+# HR Ops source workbooks — large data files, not source code
+/PEOPLE_INSIGHTS_DASHBOARD_DATA/

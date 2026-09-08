@@ -1,11 +1,13 @@
 package com.leadsquared.peopleinsights.web;
 
 import com.leadsquared.peopleinsights.ai.NarrativeService;
+import com.leadsquared.peopleinsights.export.CsvExportService;
 import com.leadsquared.peopleinsights.export.DeckExportService;
 import com.leadsquared.peopleinsights.metrics.Dataset;
 import com.leadsquared.peopleinsights.metrics.DatasetLoader;
 import com.leadsquared.peopleinsights.security.AuditService;
 import com.leadsquared.peopleinsights.security.ScopeGuard;
+import java.nio.charset.StandardCharsets;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,6 +32,7 @@ public class ExportController {
   private final DatasetLoader loader;
   private final NarrativeService narratives;
   private final DeckExportService deck;
+  private final CsvExportService csv;
   private final AuditService audit;
 
   public ExportController(
@@ -37,11 +40,13 @@ public class ExportController {
       DatasetLoader loader,
       NarrativeService narratives,
       DeckExportService deck,
+      CsvExportService csv,
       AuditService audit) {
     this.guard = guard;
     this.loader = loader;
     this.narratives = narratives;
     this.deck = deck;
+    this.csv = csv;
     this.audit = audit;
   }
 
@@ -69,5 +74,35 @@ public class ExportController {
             ContentDisposition.attachment().filename(deck.fileName(data)).build().toString())
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(pdf);
+  }
+
+  /**
+   * Filtered employee-level dataset as CSV — the export the deck deliberately withholds, because
+   * an on-screen at-risk register or headcount list is one thing and a downloadable file of names
+   * is another. Requires HRBP level or above; compensation columns appear only for a caller who
+   * also holds {@code SEE_COMPENSATION}.
+   */
+  @GetMapping("/csv")
+  public ResponseEntity<byte[]> exportCsv(
+      @RequestParam(required = false) String bu, @ModelAttribute FilterQuery filters) {
+    var scoped = guard.resolveIndividual(bu, "EXPORT", "EXPORT_FILTERED_CSV");
+    Dataset data = loader.load(scoped, filters.toSpec());
+
+    byte[] body = csv.render(data, scoped.scope()).getBytes(StandardCharsets.UTF_8);
+
+    audit.granted(
+        scoped.scope(),
+        scoped.label(),
+        "EXPORT",
+        "EXPORT_COMPLETED",
+        "CSV dataset export, " + data.size() + " rows, " + body.length + " bytes");
+
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType("text/csv"))
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.attachment().filename(csv.fileName(data)).build().toString())
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(body);
   }
 }

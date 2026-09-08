@@ -360,7 +360,7 @@ public class RiskScoringService {
   // ------------------------------------------------------------------ helpers
 
   /** The last {@code count} month keys up to and including the as-of month. */
-  static Set<String> recentMonthKeys(LocalDate asOf, int count) {
+  public static Set<String> recentMonthKeys(LocalDate asOf, int count) {
     YearMonth end = YearMonth.from(asOf);
     Set<String> keys = new LinkedHashSet<>();
     for (int i = 0; i < count; i++) {

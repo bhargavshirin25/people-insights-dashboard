@@ -624,6 +624,86 @@ body {
   }
 }
 
+/* ----------------------------------------------------------------- the login page
+ *
+ * A handful of small, quiet motions rather than one big one: the card settling in, and its brand-panel
+ * lines rising in one after another so the panel reads as composed rather than dumped on screen, plus
+ * a one-pixel lift on the button's hover. Every one of them is switched off below under
+ * prefers-reduced-motion, same as the rest of the app.
+ */
+@keyframes login-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.login-rise {
+  animation: login-rise 420ms ease-out both;
+}
+
+/* Same keyframe, staggered per element via an inline animation-delay, so the brand panel's lines
+   arrive in reading order instead of all at once. */
+.login-stagger {
+  animation: login-rise 460ms ease-out both;
+}
+
+/* The page behind the card is not flat: a soft wash of the interface accent, faint enough that it
+   reads as depth rather than as a colour choice, sitting behind where the card lands. */
+.login-backdrop {
+  background: radial-gradient(
+    640px circle at 50% 18%,
+    color-mix(in srgb, var(--series-1) 9%, transparent),
+    transparent 70%
+  );
+}
+
+/* A softer, larger shadow than the flat dashboard cards carry — the login screen is the one place in
+   the product that is allowed a little more presence, since it is the only thing on the page. */
+.login-shell {
+  box-shadow:
+    0 28px 64px -28px rgba(11, 11, 11, 0.32),
+    0 6px 18px -10px rgba(11, 11, 11, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-shell {
+    box-shadow:
+      0 28px 70px -24px rgba(0, 0, 0, 0.65),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+}
+
+:root[data-theme="dark"] .login-shell {
+  box-shadow:
+    0 28px 70px -24px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.login-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -12px rgba(11, 11, 11, 0.35);
+}
+
+.login-button:active {
+  transform: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-rise,
+  .login-stagger {
+    animation: none;
+  }
+  .login-button:hover {
+    transform: none;
+  }
+}
+
 @media print {
   .no-print {
     display: none !important;

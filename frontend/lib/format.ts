@@ -33,7 +33,7 @@ export function formatInr(value: number | null | undefined): string {
  * name the period in view and a reader comparing them would notice two different words for it.
  */
 export const PERIOD_LABELS: Record<string, string> = {
-  LAST_30_DAYS: "Last 30 days",
+  LAST_30_DAYS: "Last month",
   LAST_QUARTER: "Last quarter",
   YTD: "FY to date",
   CUSTOM: "Custom range",

@@ -27,6 +27,7 @@ export default function OverviewPage() {
   const { query } = useFilters();
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   async function exportDeck() {
     setExporting(true);
@@ -37,6 +38,18 @@ export default function OverviewPage() {
       setExportError(e instanceof Error ? e.message : "Export failed.");
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function exportCsv() {
+    setExportingCsv(true);
+    setExportError(null);
+    try {
+      await api.download(`/api/export/csv${query()}`, "people-insights.csv");
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExportingCsv(false);
     }
   }
 
@@ -56,6 +69,9 @@ export default function OverviewPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button onClick={exportCsv} variant="secondary" disabled={exportingCsv}>
+                {exportingCsv ? "Preparing CSV…" : "Export CSV"}
+              </Button>
               <Button onClick={exportDeck} variant="primary" disabled={exporting}>
                 {exporting ? "Building deck…" : "Export business review deck"}
               </Button>

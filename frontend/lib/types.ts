@@ -118,6 +118,7 @@ export interface FilterOptions {
   businessUnits: string[];
   grades: string[];
   locations: string[];
+  departments: string[];
   tenureMaxYears: number;
   periods: string[];
   asOf: string;
@@ -249,6 +250,8 @@ export interface PerformanceView {
 export interface LeaveAttendanceView {
   businessUnit: string;
   monthsCovered: string[];
+  /** Months inside `monthsCovered` that the selected Period narrows "Attendance by team" to. */
+  teamHealthMonths: string[];
   leaveUtilisation: {
     leaveType: string;
     entitlement: number;

@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
 public record FilterSpec(
     List<String> grades,
     List<String> locations,
+    /** Leaf-level department/function, {@link com.leadsquared.peopleinsights.domain.Employee#department()}. */
+    List<String> departments,
     Double tenureMinYears,
     Double tenureMaxYears,
     /** LAST_30_DAYS | LAST_QUARTER | YTD | CUSTOM */
@@ -27,13 +29,14 @@ public record FilterSpec(
     LocalDate customTo) {
 
   public static FilterSpec none() {
-    return new FilterSpec(List.of(), List.of(), null, null, "LAST_30_DAYS", null, null);
+    return new FilterSpec(List.of(), List.of(), List.of(), null, null, "LAST_30_DAYS", null, null);
   }
 
   public FilterSpec normalised() {
     return new FilterSpec(
         grades == null ? List.of() : grades.stream().filter(s -> !s.isBlank()).toList(),
         locations == null ? List.of() : locations.stream().filter(s -> !s.isBlank()).toList(),
+        departments == null ? List.of() : departments.stream().filter(s -> !s.isBlank()).toList(),
         tenureMinYears,
         tenureMaxYears,
         period == null || period.isBlank() ? "LAST_30_DAYS" : period.toUpperCase(),
@@ -42,7 +45,11 @@ public record FilterSpec(
   }
 
   public boolean isEmpty() {
-    return grades.isEmpty() && locations.isEmpty() && tenureMinYears == null && tenureMaxYears == null;
+    return grades.isEmpty()
+        && locations.isEmpty()
+        && departments.isEmpty()
+        && tenureMinYears == null
+        && tenureMaxYears == null;
   }
 
   /** Inclusive start of the selected period, relative to the dashboard's as-of anchor. */
@@ -74,7 +81,7 @@ public record FilterSpec(
       case "LAST_QUARTER" -> "Last quarter";
       case "YTD" -> "FY to date";
       case "CUSTOM" -> periodStart(asOf) + " to " + periodEnd(asOf);
-      default -> "Last 30 days";
+      default -> "Last month";
     };
   }
 
@@ -84,6 +91,9 @@ public record FilterSpec(
       return false;
     }
     if (!locations.isEmpty() && (e.officeLocation() == null || !locations.contains(e.officeLocation()))) {
+      return false;
+    }
+    if (!departments.isEmpty() && (e.department() == null || !departments.contains(e.department()))) {
       return false;
     }
     if (tenureMinYears != null || tenureMaxYears != null) {
@@ -120,6 +130,7 @@ public record FilterSpec(
         "|",
         n.grades.stream().sorted().collect(Collectors.joining(",")),
         n.locations.stream().sorted().collect(Collectors.joining(",")),
+        n.departments.stream().sorted().collect(Collectors.joining(",")),
         String.valueOf(n.tenureMinYears),
         String.valueOf(n.tenureMaxYears),
         n.period,

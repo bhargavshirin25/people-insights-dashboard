@@ -4,6 +4,10 @@ BU-level people metrics, attrition risk and exit intelligence for HR business pa
 LeadSquared. Next.js frontend, Spring Boot backend, MySQL data layer, Claude for narrative
 summaries.
 
+- **Project overview** — [`docs/OVERVIEW.md`](docs/OVERVIEW.md). What this is, who uses it, and what
+  is and isn't production-ready yet.
+- **Technical architecture** — [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). System design, package
+  layout, request flow, the API surface, for engineers working on the codebase.
 - **Access control and privacy architecture** — [`docs/ACCESS-CONTROL.md`](docs/ACCESS-CONTROL.md).
   This is the document HR Ops signs off before go-live.
 - **What the data does and does not support** — [`docs/DATA-NOTES.md`](docs/DATA-NOTES.md). Read this
@@ -160,7 +164,7 @@ resolved list and nothing else, so no code path can read a BU the caller was not
 
 | View | Route | Notes |
 |---|---|---|
-| BU overview | `/` | Six metric cards above the fold with MoM movement, AI narrative, 30-day HR calendar, one-click deck export |
+| BU overview | `/` | Six metric cards above the fold with MoM movement, AI narrative, 30-day HR calendar, one-click PDF deck export, filtered CSV export |
 | Attrition risk register | `/risk` | Ranked, with the top three contributing factors per employee and retention-action logging |
 | Exit analysis | `/exit` | Themes, exit types, tenure bands, sentiment trend, anonymised verbatims filterable by theme |
 | Performance & engagement | `/performance` | Three PMS cycles, promotion rate, eNPS with theme breakdown, PMS-vs-engagement flags, high performers never promoted |
@@ -360,7 +364,7 @@ appears, rather than offering an input that can only fail.
 cd backend && mvn test
 ```
 
-65 tests, covering the things that would be most damaging to get wrong:
+70 tests, covering the things that would be most damaging to get wrong:
 
 - **`ScopeGuardTest`** — cross-BU isolation. A role scoped to Engineering is denied Sales data; a
   differently cased or unknown BU identifier is denied rather than silently returning nothing; a role
@@ -388,6 +392,10 @@ cd backend && mvn test
   not a column matches nothing rather than the nearest thing, a dotted JSON path finds what it should, and
   a source is due on its interval rather than on every tick.
 - **`DatasetCacheTest`** — a cached dataset cannot be served across scopes, and a new ingest drops it.
+- **`CsvExportServiceTest`** — the filtered CSV export: compensation columns exist only for a caller
+  holding `SEE_COMPENSATION`, one row per employee including exited ones (with no stale risk score
+  attached to them), every row has the same field count as the header, and a value that looks like a
+  spreadsheet formula (`=`, `+`, `-`, `@`) is neutralised rather than written verbatim.
 
 ---
 

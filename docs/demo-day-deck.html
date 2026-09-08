@@ -1,0 +1,672 @@
+<title>Robin HRBP Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0e14;
+    --panel:#111823;
+    --panel-2:#161f2d;
+    --line:#28344a;
+    --line-soft:#1c273a;
+    --ink:#eaf1f8;
+    --muted:#8fa0b8;
+    --accent:#4fd1c5;
+    --accent-dim:#1e3a3c;
+    --good:#4ade80;
+    --caution:#f5a623;
+    --risk:#fb5b5b;
+    --font-display:'Big Shoulders Condensed', 'Arial Narrow', sans-serif;
+    --font-body:'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:var(--font-display);font-weight:800;margin:0;text-wrap:balance;}
+  p{margin:0;}
+  ::selection{background:var(--accent);color:#04211f;}
+  button{font-family:var(--font-mono);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+
+  .deck{
+    position:relative;
+    height:100vh;
+    width:100vw;
+    display:flex;
+    flex-direction:column;
+    background:
+      radial-gradient(ellipse 120% 90% at 50% -10%, rgba(79,209,197,.08), transparent 60%),
+      var(--bg);
+  }
+  .deck::before{
+    content:"";
+    position:absolute;inset:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0px, rgba(255,255,255,.012) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode:overlay;
+    z-index:5;
+  }
+
+  /* ---------- top HUD bar ---------- */
+  .hud-top{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    padding:clamp(.9rem,2vh,1.4rem) clamp(1.2rem,3vw,2.4rem) .8rem;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .hud-mark{
+    display:flex;align-items:baseline;gap:.6rem;
+    font-family:var(--font-mono);
+    font-size:clamp(.68rem,1vw,.8rem);
+    letter-spacing:.16em;
+    color:var(--muted);
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .hud-mark b{
+    color:var(--ink);
+    font-weight:600;
+    letter-spacing:.08em;
+  }
+  .hud-mark .dot-sep{color:var(--accent);}
+  .hud-index{
+    font-family:var(--font-mono);
+    font-size:clamp(.72rem,1vw,.85rem);
+    letter-spacing:.1em;
+    color:var(--muted);
+    font-variant-numeric:tabular-nums;
+  }
+  .hud-index b{color:var(--accent);font-weight:600;}
+  .autoplay-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-size:.68rem;
+    letter-spacing:.14em;
+    padding:.35rem .7rem;
+    border-radius:3px;
+    cursor:pointer;
+    text-transform:uppercase;
+    transition:border-color .15s, color .15s;
+  }
+  .autoplay-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .autoplay-btn[data-on="true"]{color:var(--accent);border-color:var(--accent-dim);}
+
+  /* ---------- slides ---------- */
+  .slides{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+  }
+  .slide{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    /* Not center: when a slide's content is taller than the viewport, centering pushes the top
+       of the content above the visible area — and unlike bottom overflow, that top overflow is
+       not reachable by scrolling in most browsers, so the opening line gets silently clipped on
+       a short window. Starting from the top means overflow only ever grows downward, where the
+       scrollbar can actually reach it. */
+    justify-content:flex-start;
+    padding:clamp(1.4rem,4vh,3.2rem) clamp(1.4rem,5vw,4.5rem);
+    opacity:0;
+    transform:translateX(24px);
+    transition:opacity .38s ease, transform .38s ease;
+    pointer-events:none;
+    overflow-y:auto;
+  }
+  .slide.active{
+    opacity:1;
+    transform:translateX(0);
+    pointer-events:auto;
+    z-index:2;
+  }
+  @media (prefers-reduced-motion:reduce){
+    .slide{transition:opacity .01s linear;transform:none;}
+  }
+
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:clamp(.7rem,1vw,.85rem);
+    letter-spacing:.2em;
+    color:var(--accent);
+    text-transform:uppercase;
+    margin-bottom:clamp(.6rem,1.4vh,1rem);
+  }
+  .headline{
+    font-size:clamp(2rem,5.4vw,4.6rem);
+    line-height:1.02;
+    max-width:20ch;
+    margin-bottom:clamp(1rem,2.4vh,1.8rem);
+  }
+  .lede{
+    font-size:clamp(1rem,1.5vw,1.3rem);
+    line-height:1.5;
+    color:var(--ink);
+    max-width:62ch;
+    margin-bottom:clamp(1.1rem,2.4vh,1.8rem);
+  }
+  .lede b{color:var(--accent);font-weight:600;}
+
+  /* ---------- cover ---------- */
+  .cover{
+    position:relative;
+    justify-content:center;
+    align-items:flex-start;
+  }
+  .cover .sweep{
+    position:absolute;
+    top:50%;left:min(78%,780px);
+    width:min(70vw,900px);height:min(70vw,900px);
+    transform:translate(-30%,-50%);
+    border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(79,209,197,.16), transparent 30%, transparent 100%);
+    filter:blur(6px);
+    animation:spin 14s linear infinite;
+    z-index:0;
+  }
+  @media (prefers-reduced-motion:reduce){ .cover .sweep{animation:none;} }
+  @keyframes spin{to{transform:translate(-30%,-50%) rotate(360deg);}}
+  .cover-inner{position:relative;z-index:1;}
+  .cover .eyebrow{color:var(--muted);}
+  .cover h1{
+    font-size:clamp(4rem,15vw,11rem);
+    line-height:.86;
+    letter-spacing:.01em;
+    color:var(--ink);
+    text-shadow:0 0 60px rgba(79,209,197,.35);
+  }
+  .cover .tagline{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(1.4rem,3vw,2.4rem);
+    color:var(--accent);
+    margin-top:.2rem;
+    margin-bottom:1.1rem;
+  }
+  .stat-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:.7rem;
+    margin-top:clamp(1rem,2.6vh,2rem);
+  }
+  .stat-chip{
+    border:1px solid var(--line);
+    background:var(--panel);
+    padding:.55rem .95rem;
+    border-radius:4px;
+    font-family:var(--font-mono);
+    font-size:clamp(.72rem,1vw,.85rem);
+    letter-spacing:.05em;
+    color:var(--muted);
+  }
+  .stat-chip b{color:var(--accent);font-weight:600;}
+  .cover-footer{
+    position:absolute;
+    bottom:clamp(1.2rem,3vh,2.2rem);
+    left:clamp(1.4rem,5vw,4.5rem);
+    font-family:var(--font-mono);
+    font-size:.75rem;
+    letter-spacing:.12em;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+
+  /* ---------- problem callout ---------- */
+  .callout{
+    border-left:3px solid var(--caution);
+    background:var(--panel);
+    padding:.9rem 1.2rem;
+    border-radius:0 6px 6px 0;
+    max-width:56ch;
+    margin:.3rem 0 1.3rem;
+  }
+  .callout .tag{
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    letter-spacing:.14em;
+    color:var(--caution);
+    text-transform:uppercase;
+    display:block;
+    margin-bottom:.35rem;
+  }
+  .callout p{font-size:clamp(1rem,1.4vw,1.2rem);color:var(--ink);line-height:1.45;}
+  .table-wrap{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:8px;
+    padding:.2rem clamp(.8rem,1.6vw,1.2rem);
+    max-width:70ch;
+    overflow-x:auto;
+  }
+  .info-table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:clamp(.78rem,1.05vw,.95rem);white-space:nowrap;}
+  .info-table th{
+    text-align:left;color:var(--muted);font-weight:500;
+    letter-spacing:.09em;text-transform:uppercase;font-size:.68rem;
+    padding:.65rem .9rem;border-bottom:1px solid var(--line);
+  }
+  .info-table td{padding:.6rem .9rem;border-bottom:1px solid var(--line-soft);color:var(--ink);white-space:normal;}
+  .info-table tr:last-child td{border-bottom:none;}
+  .info-table td.pii-yes{color:var(--good);}
+  .info-table td.pii-no{color:var(--muted);}
+  .stack-lines{display:flex;flex-direction:column;gap:.7rem;max-width:64ch;margin-bottom:1.2rem;}
+  .stack-lines p{font-size:clamp(1rem,1.4vw,1.25rem);line-height:1.5;color:var(--ink);}
+  .stack-lines p b{color:var(--accent);font-weight:600;}
+  .closer{
+    font-size:clamp(1rem,1.35vw,1.2rem);
+    color:var(--muted);
+    font-style:normal;
+    max-width:60ch;
+  }
+  .closer b{color:var(--ink);font-weight:600;}
+
+  /* ---------- card grid (solution + implementation) ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:.9rem;
+    margin-bottom:1.4rem;
+  }
+  @media (max-width:900px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:600px){ .grid{grid-template-columns:1fr;} }
+  .card{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:8px;
+    padding:1rem 1.1rem;
+  }
+  .card .tag{
+    display:block;
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    letter-spacing:.13em;
+    color:var(--accent);
+    text-transform:uppercase;
+    margin-bottom:.45rem;
+  }
+  .card p{font-size:clamp(.9rem,1.2vw,1.05rem);line-height:1.45;color:var(--muted);}
+
+  /* ---------- implementation layout ---------- */
+  .impl-wrap{display:grid;grid-template-columns:1.05fr 1.3fr;gap:clamp(1.4rem,3vw,2.6rem);align-items:start;}
+  @media (max-width:980px){ .impl-wrap{grid-template-columns:1fr;} }
+  .flow{
+    display:flex;flex-direction:column;gap:.5rem;
+    font-family:var(--font-mono);
+    font-size:clamp(.78rem,1.05vw,.92rem);
+  }
+  .flow-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+  .flow-box{
+    border:1px solid var(--line);
+    background:var(--panel-2);
+    padding:.55rem .85rem;
+    border-radius:5px;
+    color:var(--ink);
+    white-space:nowrap;
+  }
+  .flow-box.ai{border-color:var(--accent-dim);color:var(--accent);}
+  .flow-arrow{color:var(--muted);}
+  .flow-branch{margin-left:1.6rem;color:var(--muted);}
+  .ai-rows{display:flex;flex-direction:column;gap:.8rem;margin:1.1rem 0 1.2rem;}
+  .ai-row{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:.9rem 1.05rem;}
+  .ai-row .tag{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.13em;color:var(--accent);text-transform:uppercase;display:block;margin-bottom:.35rem;}
+  .ai-row p{font-size:clamp(.88rem,1.15vw,1.02rem);line-height:1.45;color:var(--ink);}
+  .chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem;}
+  .chip{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.04em;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:.32rem .65rem;
+    border-radius:20px;
+  }
+
+  /* ---------- readiness ---------- */
+  .ready-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:.85rem;
+    margin-bottom:1.3rem;
+  }
+  @media (max-width:1050px){ .ready-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:600px){ .ready-grid{grid-template-columns:1fr;} }
+  .ready-col{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:8px;
+    padding:1rem 1.05rem;
+    border-top:3px solid var(--line);
+  }
+  .ready-col.c-good{border-top-color:var(--good);}
+  .ready-col.c-caution{border-top-color:var(--caution);}
+  .ready-col.c-risk{border-top-color:var(--risk);}
+  .ready-col.c-accent{border-top-color:var(--accent);}
+  .ready-col .tag{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.6rem;}
+  .c-good .tag{color:var(--good);}
+  .c-caution .tag{color:var(--caution);}
+  .c-risk .tag{color:var(--risk);}
+  .c-accent .tag{color:var(--accent);}
+  .ready-col ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.55rem;}
+  .ready-col li{font-size:clamp(.82rem,1.05vw,.95rem);line-height:1.4;color:var(--ink);padding-left:.85rem;position:relative;}
+  .ready-col li::before{content:"–";position:absolute;left:0;color:var(--muted);}
+  .verdict{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(1.2rem,2.2vw,1.8rem);
+    color:var(--ink);
+    border-top:1px solid var(--line-soft);
+    padding-top:1rem;
+  }
+  .verdict b{color:var(--accent);}
+
+  /* ---------- bottom HUD ---------- */
+  .hud-bottom{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:1.4rem;
+    padding:clamp(.7rem,1.6vh,1.1rem) 1rem;
+    border-top:1px solid var(--line-soft);
+  }
+  .nav-btn{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--ink);
+    width:2.3rem;height:2.3rem;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    font-size:1rem;
+    transition:border-color .15s,color .15s;
+  }
+  .nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .dots{display:flex;gap:.5rem;}
+  .dot{
+    width:.55rem;height:.55rem;
+    border-radius:50%;
+    background:var(--line);
+    border:none;
+    cursor:pointer;
+    padding:0;
+    transition:background .15s,transform .15s;
+  }
+  .dot:hover{background:var(--muted);}
+  .dot.active{background:var(--accent);transform:scale(1.3);}
+  .kbd-hint{
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    letter-spacing:.08em;
+    color:var(--muted);
+    display:none;
+  }
+  @media (min-width:820px){ .kbd-hint{display:block;} }
+</style>
+
+<div class="deck" id="deck">
+  <div class="hud-top">
+    <div class="hud-mark">ROBIN INSIGHTS <span class="dot-sep">·</span> <b>HRBP COCKPIT</b> <span class="dot-sep">·</span> LEAD².STORM 2026</div>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <div class="hud-index"><b id="hud-index-current">01</b> / 06</div>
+      <button class="autoplay-btn" id="autoplayBtn" data-on="true">AUTO ⏸</button>
+    </div>
+  </div>
+
+  <div class="slides">
+
+    <!-- SLIDE 0 — COVER -->
+    <section class="slide active cover" data-index="0">
+      <div class="sweep" aria-hidden="true"></div>
+      <div class="cover-inner">
+        <div class="eyebrow">LEAD².STORM 2026 — DEMO DAY, LEADSQUARED</div>
+        <h1>ROBIN INSIGHTS</h1>
+        <div class="tagline">The HRBP cockpit.</div>
+        <p class="lede">One screen for headcount, attrition risk, performance, engagement and exits —
+          instead of five logins and a spreadsheet rebuilt every review cycle.</p>
+        <div class="stat-row">
+          <div class="stat-chip"><b>7</b> systems worth of data → <b>1</b> view</div>
+          <div class="stat-chip"><b>9</b> dashboard views</div>
+          <div class="stat-chip"><b>69</b> automated tests, green</div>
+          <div class="stat-chip">Retires the <b>Power BI</b> seat cost</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 1 — OVERVIEW -->
+    <section class="slide" data-index="1">
+      <div class="eyebrow">01 — Overview</div>
+      <h2 class="headline" style="max-width:24ch;">What Robin Insights actually is.</h2>
+      <p class="lede">A BU-level people-analytics cockpit for HRBPs, HR Head and CHRO — headcount, compensation, leave, attendance, performance, engagement and exits, in one screen. Built on a full role-based access and audit layer, because this is HR's most sensitive data.</p>
+      <div class="table-wrap">
+        <table class="info-table">
+          <thead><tr><th>Role</th><th>Business units</th><th>Individual PII</th></tr></thead>
+          <tbody>
+            <tr><td>HRBP</td><td>Own BU(s) only</td><td class="pii-yes">Yes, within BU</td></tr>
+            <tr><td>HR Head</td><td>All BUs</td><td class="pii-yes">Yes</td></tr>
+            <tr><td>CHRO</td><td>All BUs + org heat map</td><td class="pii-yes">Yes</td></tr>
+            <tr><td>Viewer</td><td>All BUs, aggregated only</td><td class="pii-no">No</td></tr>
+            <tr><td>Admin</td><td>Configuration only — no employee data</td><td class="pii-no">No</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="closer" style="margin-top:1.2rem;">Ask for a BU you're not assigned to → <b>403</b>. Never an empty page that quietly looks like real data.</p>
+    </section>
+
+    <!-- SLIDE 2 — PROBLEM -->
+    <section class="slide" data-index="2">
+      <div class="eyebrow">02 — Problem</div>
+      <h2 class="headline">HRBPs fly into every business review blind.</h2>
+      <div class="stack-lines">
+        <p>Headcount lives in <b>Darwinbox</b>. Engagement lives in a survey tool. Performance lives in a third system. Attrition risk lives in nobody's system — it's a gut call.</p>
+        <p>Before every BU review: export, reconcile, re-type. By hand. Every single cycle.</p>
+      </div>
+      <div class="callout">
+        <span class="tag">The workaround today</span>
+        <p>Manual exports, stitched into a spreadsheet, then <b>licensed Power BI seats</b> just to look at them — paid infrastructure for a view that's still hours behind the data.</p>
+      </div>
+      <p class="closer">Result: insights that arrive <b>late</b>, disagree with each other across systems, rarely go deeper than a headcount number — and come with a recurring bill.</p>
+    </section>
+
+    <!-- SLIDE 2 — SOLUTION -->
+    <section class="slide" data-index="3">
+      <div class="eyebrow">03 — Solution</div>
+      <h2 class="headline">One cockpit. Every BU, one screen, always current.</h2>
+      <p class="lede">Robin Insights pulls headcount, attrition risk, performance, engagement and exits into one dashboard per business unit — and writes the paragraph an HRBP would otherwise have typed by hand.</p>
+      <div class="grid">
+        <div class="card"><span class="tag">Live metrics</span><p>Six headline numbers per BU, with month-on-month movement — not a snapshot.</p></div>
+        <div class="card"><span class="tag">AI narrative</span><p>"Attrition in Sales is up 12% MoM, driven by X" — written for the reader, not left for them to infer from a chart.</p></div>
+        <div class="card"><span class="tag">Risk &amp; heat maps</span><p>Who's likely to leave, why, and how every business unit compares side by side.</p></div>
+        <div class="card"><span class="tag">HR calendar</span><p>Appraisals, confirmations and work anniversaries, 30 days out.</p></div>
+        <div class="card"><span class="tag">Export</span><p>The business review deck as a PDF in under a second, or the filtered employee list as CSV — PII columns included only for a caller cleared to see them.</p></div>
+        <div class="card"><span class="tag">Drill-down</span><p>By grade, location, tenure and period — the whole page moves together.</p></div>
+      </div>
+      <p class="closer">Same numbers — <b>however many times, however many people, open it</b> — and no Power BI seat to license for it.</p>
+    </section>
+
+    <!-- SLIDE 3 — IMPLEMENTATION -->
+    <section class="slide" data-index="4">
+      <div class="eyebrow">04 — Implementation</div>
+      <h2 class="headline" style="max-width:23ch;">A glass cockpit — wired all the way through.</h2>
+      <div class="impl-wrap">
+        <div>
+          <div class="flow">
+            <div class="flow-row"><span class="flow-box">Browser</span><span class="flow-arrow">→</span><span class="flow-box">Next.js 15 (React)</span></div>
+            <div class="flow-row"><span class="flow-arrow">→</span><span class="flow-box">Spring Boot API</span><span class="flow-arrow">→</span><span class="flow-box">MySQL 8.4</span></div>
+            <div class="flow-row flow-branch"><span class="flow-arrow">⤷</span><span class="flow-box ai">Claude (Anthropic)</span><span class="flow-arrow">— narrative + assistant</span></div>
+          </div>
+          <div class="chips">
+            <span class="chip">NEXT.JS 15</span><span class="chip">REACT 19</span><span class="chip">SPRING BOOT 3.5</span>
+            <span class="chip">JAVA 21</span><span class="chip">MYSQL 8.4</span><span class="chip">CLAUDE</span>
+          </div>
+          <div class="callout" style="margin-top:1.2rem;border-left-color:var(--accent);">
+            <span class="tag" style="color:var(--accent);">Access control, not an afterthought</span>
+            <p>Every read is scoped to business unit and permission, <b>server-side</b> — denied with a 403, never a quiet empty page — and logged to an audit trail.</p>
+          </div>
+        </div>
+        <div>
+          <div class="ai-rows">
+            <div class="ai-row">
+              <span class="tag">Narrative — grounded, not guessed</span>
+              <p>Every figure the model writes is checked against the fact sheet it was given. An unverifiable number is rewritten once, then replaced with a computed summary. Never invented.</p>
+            </div>
+            <div class="ai-row">
+              <span class="tag">Ask Robin — the assistant</span>
+              <p>A chat panel briefed only on the metrics the signed-in reader is already cleared to see. No database access of its own — it cannot answer with anything it wasn't handed.</p>
+            </div>
+            <div class="ai-row">
+              <span class="tag">What it integrates with</span>
+              <p>Seven HR Ops extracts ingested today. A generic polled-API connector — endpoint, interval, JSON path, configured on screen — is the same door a live Darwinbox or survey feed walks through. No new code to point it there.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4 — READINESS -->
+    <section class="slide" data-index="5">
+      <div class="eyebrow">05 — Readiness</div>
+      <h2 class="headline" style="max-width:26ch;">What's real today. What's left. What it costs.</h2>
+      <div class="ready-grid">
+        <div class="ready-col c-good">
+          <span class="tag">● Live today</span>
+          <ul>
+            <li>All 9 views, end to end, on 5,000 real employee records</li>
+            <li>Role-based access + full audit trail</li>
+            <li>AI narrative, figure-verified</li>
+            <li>Ask Robin assistant</li>
+            <li>One-click PDF deck export</li>
+            <li>Filtered CSV export, PII gated by permission</li>
+            <li>70 automated tests, green</li>
+            <li>Runs without a Power BI seat</li>
+          </ul>
+        </div>
+        <div class="ready-col c-caution">
+          <span class="tag">● Stubbed for the demo</span>
+          <ul>
+            <li>Sign-in — SSO is wired, running on a placeholder identity until tenant credentials land</li>
+            <li>Data source — a real HR extract, not a live Darwinbox feed yet</li>
+            <li>BU ownership — a seeded default, not HR Ops' confirmed mapping</li>
+          </ul>
+        </div>
+        <div class="ready-col c-risk">
+          <span class="tag">● Left to production</span>
+          <ul>
+            <li>Point the existing API connector at Darwinbox / the survey tool</li>
+            <li>Supply the Entra (SSO) tenant credentials</li>
+            <li>Confirm real BU-to-HRBP ownership with HR Ops</li>
+            <li>Sign off the read-performance cache against the access policy</li>
+          </ul>
+        </div>
+        <div class="ready-col c-accent">
+          <span class="tag">● Effort to get there</span>
+          <ul>
+            <li>SSO: hours, once credentials exist</li>
+            <li>Live data feed: point the connector — no new code</li>
+            <li>Full production hardening: roughly two sprints</li>
+          </ul>
+        </div>
+      </div>
+      <p class="verdict">Core flow is <b>live</b>. What's stubbed is <b>named</b>. That's the honest state.</p>
+    </section>
+
+  </div>
+
+  <div class="hud-bottom">
+    <button class="nav-btn" id="prevBtn" aria-label="Previous slide">‹</button>
+    <div class="dots" id="dots"></div>
+    <button class="nav-btn" id="nextBtn" aria-label="Next slide">›</button>
+    <span class="kbd-hint">← → TO NAVIGATE&nbsp;&nbsp;·&nbsp;&nbsp;1–6 TO JUMP</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsWrap = document.getElementById('dots');
+  var hudIndex = document.getElementById('hud-index-current');
+  var current = 0;
+  var AUTOPLAY_MS = 9000;
+  var timer = null;
+  var autoOn = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var autoplayBtn = document.getElementById('autoplayBtn');
+
+  slides.forEach(function(_, i){
+    var d = document.createElement('button');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.setAttribute('aria-label', 'Go to slide ' + (i+1));
+    d.addEventListener('click', function(){ goTo(i, true); });
+    dotsWrap.appendChild(d);
+  });
+  var dots = Array.prototype.slice.call(dotsWrap.children);
+
+  function render(){
+    slides.forEach(function(s, i){ s.classList.toggle('active', i === current); });
+    dots.forEach(function(d, i){ d.classList.toggle('active', i === current); });
+    hudIndex.textContent = String(current + 1).padStart(2, '0');
+  }
+
+  function goTo(i, userInitiated){
+    current = (i + slides.length) % slides.length;
+    render();
+    if (userInitiated) restartAutoplay(true);
+  }
+
+  function next(userInitiated){ goTo(current + 1, userInitiated); }
+  function prev(userInitiated){ goTo(current - 1, userInitiated); }
+
+  function startAutoplay(){
+    stopAutoplay();
+    if (!autoOn) return;
+    timer = setInterval(function(){ next(false); }, AUTOPLAY_MS);
+  }
+  function stopAutoplay(){ if (timer) { clearInterval(timer); timer = null; } }
+  function restartAutoplay(userTurnedInteracted){
+    if (userTurnedInteracted){ autoOn = false; syncAutoplayBtn(); }
+    startAutoplay();
+  }
+  function syncAutoplayBtn(){
+    autoplayBtn.dataset.on = autoOn ? 'true' : 'false';
+    autoplayBtn.textContent = autoOn ? 'AUTO ⏸' : 'AUTO ▶';
+  }
+
+  document.getElementById('prevBtn').addEventListener('click', function(){ prev(true); });
+  document.getElementById('nextBtn').addEventListener('click', function(){ next(true); });
+  autoplayBtn.addEventListener('click', function(){
+    autoOn = !autoOn;
+    syncAutoplayBtn();
+    startAutoplay();
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === ' ') { next(true); }
+    else if (e.key === 'ArrowLeft') { prev(true); }
+    else if (/^[1-6]$/.test(e.key)) { goTo(parseInt(e.key, 10) - 1, true); }
+  });
+
+  var touchStartX = null;
+  document.addEventListener('touchstart', function(e){ touchStartX = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if (touchStartX === null) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) { dx < 0 ? next(true) : prev(true); }
+    touchStartX = null;
+  }, {passive:true});
+
+  syncAutoplayBtn();
+  render();
+  startAutoplay();
+})();
+</script>

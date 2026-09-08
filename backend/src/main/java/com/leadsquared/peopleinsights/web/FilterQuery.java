@@ -14,6 +14,7 @@ public class FilterQuery {
 
   private List<String> grade;
   private List<String> location;
+  private List<String> department;
   private Double tenureMin;
   private Double tenureMax;
   private String period;
@@ -24,6 +25,7 @@ public class FilterQuery {
     return new FilterSpec(
             grade == null ? List.of() : grade,
             location == null ? List.of() : location,
+            department == null ? List.of() : department,
             tenureMin,
             tenureMax,
             period,
@@ -46,6 +48,14 @@ public class FilterQuery {
 
   public void setLocation(List<String> location) {
     this.location = location;
+  }
+
+  public List<String> getDepartment() {
+    return department;
+  }
+
+  public void setDepartment(List<String> department) {
+    this.department = department;
   }
 
   public Double getTenureMin() {
