@@ -1,0 +1,10 @@
+# git-secrets false positives.
+#
+# `git secrets --aws-provider` reads ~/.aws/credentials and emits each
+# profile's key values as literal scan patterns. One profile here holds
+# short placeholder values (the localstack convention), so those
+# placeholders become patterns that fire on ordinary English words
+# appearing anywhere in a diff. The real fix is to drop that profile or
+# give it realistic dummy values; until then, narrow allowances below.
+
+mysqladmin", "ping"

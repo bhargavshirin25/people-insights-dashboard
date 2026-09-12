@@ -8,14 +8,14 @@ services:
       - --collation-server=utf8mb4_0900_ai_ci
       - --max-allowed-packet=67108864
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-<MYSQL-PASSWORD-REMOVED>}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}
       MYSQL_DATABASE: people_insights
     volumes:
       - mysql-data:/var/lib/mysql
     ports:
       - "${MYSQL_HOST_PORT:-3307}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-<MYSQL-PASSWORD-REMOVED>}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -31,7 +31,7 @@ services:
     environment:
       MYSQL_URL: jdbc:mysql://mysql:3306/people_insights?rewriteBatchedStatements=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8
       MYSQL_USER: root
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-<MYSQL-PASSWORD-REMOVED>}
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       INGEST_DIR: /data/hr-ops
       # Entra SSO: application-sso.yml reads these. Activate only once they're supplied — an empty

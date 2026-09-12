@@ -6,7 +6,7 @@ spring:
     # MySQL in Docker on this machine. See docs/MYSQL.md for the container command.
     url: ${MYSQL_URL:jdbc:mysql://localhost:3306/people_insights?rewriteBatchedStatements=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8}
     username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:<MYSQL-PASSWORD-REMOVED>}
+    password: ${MYSQL_PASSWORD:}
     hikari:
       # The dataset assembly issues its six reads concurrently, so the pool must not be the thing
       # that serialises them.
@@ -42,7 +42,7 @@ spring:
 # Mongo; leaving it set does not open a connection.
 migration:
   mongodb:
-    uri: ${MONGODB_URI:mongodb+srv://<CREDENTIAL-REMOVED>@esscontroller.qkxrecm.mongodb.net/people_insights?retryWrites=true&w=majority&appName=esscontroller}
+    uri: ${MONGODB_URI:}
     database: ${MONGODB_DATABASE:people_insights}
 
 server:
@@ -66,7 +66,6 @@ dashboard:
   # this app), override both with an absolute, browser-facing origin — see SecurityConfig.
   post-login-redirect-url: ${POST_LOGIN_REDIRECT_URL:/}
   login-failure-redirect-url: ${LOGIN_FAILURE_REDIRECT_URL:/login?error}
-  dev-password: ${DEV_PASSWORD:<DEV-PASSWORD-REMOVED>}
   audit-retention-days: 90
   anomaly-denied-threshold: 5
   anomaly-window-minutes: 60

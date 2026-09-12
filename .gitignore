@@ -25,3 +25,10 @@ next-env.d.ts
 
 # HR Ops source workbooks — large data files, not source code
 /PEOPLE_INSIGHTS_DASHBOARD_DATA/
+
+# Keys and certs — never commit these (see incident: robin-dev.pem, Aug 2026)
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
