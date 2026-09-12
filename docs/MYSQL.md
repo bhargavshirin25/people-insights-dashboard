@@ -14,7 +14,7 @@ neither should be deleted casually. The other databases on that cluster (`hr_coc
 ```bash
 docker run -d --name people-insights-mysql \
   -p 3306:3306 \
-  -e MYSQL_ROOT_PASSWORD=<MYSQL-PASSWORD-REMOVED> \
+  -e MYSQL_ROOT_PASSWORD="$MYSQL_ROOT_PASSWORD" \
   -e MYSQL_DATABASE=people_insights \
   -v people-insights-mysql-data:/var/lib/mysql \
   --restart unless-stopped \
